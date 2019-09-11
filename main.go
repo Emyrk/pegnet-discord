@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"github.com/Emyrk/pegnet-discord/discord"
 	"github.com/pegnet/pegnet-node/node"
 	"github.com/pegnet/pegnet/balances"
 	pcmd "github.com/pegnet/pegnet/cmd"
@@ -59,8 +60,16 @@ var pegnetNode = &cobra.Command{
 		if err != nil {
 			pcmd.CmdError(cmd, err)
 		}
-		apiserver.Listen(apiport)
-		var _ = apiserver
+		go apiserver.Listen(apiport)
+
+		// Launch the discord bot
+		bot, err := discord.NewPegnetDiscordBot("")
+		if err != nil {
+			pcmd.CmdError(cmd, err)
+		}
+		bot.Node = pegnetnode
+
+		common.GlobalExitHandler.AddCancel(cancel)
 
 	},
 }
