@@ -70,7 +70,7 @@ var discordNode = &cobra.Command{
 		if mock {
 			bot, err = discord.NewMockPegnetDiscordBot(pcmd.Config)
 		} else {
-			bot, err = discord.NewPegnetDiscordBot("", pcmd.Config)
+			bot, err = discord.NewPegnetDiscordBot(args[0], pcmd.Config)
 		}
 		if err != nil {
 			pcmd.CmdError(cmd, err)

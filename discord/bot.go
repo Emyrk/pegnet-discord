@@ -9,12 +9,13 @@ import (
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/pegnet/pegnet/api"
+	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/pegnet/pegnet-node/node"
-	"github.com/sirupsen/logrus"
+	"github.com/pegnet/pegnet/api"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/zpatrick/go-config"
 )
 
@@ -28,6 +29,12 @@ type PegnetDiscordBot struct {
 	Node     *node.PegnetNode
 	API      *api.APIServer
 	cmdRegex *regexp.Regexp
+
+	root *cobra.Command
+
+	// TODO: This is hacky
+	sync.Mutex
+	returnChannel string
 }
 
 func NewPegnetDiscordBot(token string, config *config.Config) (*PegnetDiscordBot, error) {
@@ -47,6 +54,7 @@ func NewPegnetDiscordBot(token string, config *config.Config) (*PegnetDiscordBot
 	p.session.AddHandler(p.messageCreate)
 	p.cmdRegex, _ = regexp.Compile("!pegnet.*")
 	p.config = config
+	p.root = p.RootCmd()
 
 	return p, nil
 }
@@ -110,21 +118,32 @@ func (a *PegnetDiscordBot) messageCreate(s *discordgo.Session, m *discordgo.Mess
 		return
 	}
 
-	data := a.HandleMessage(m.Content)
-	_, _ = s.ChannelMessageSend(m.ChannelID, string(data))
+	a.returnChannel = m.ChannelID
+	userChannel, err := a.session.UserChannelCreate(m.Author.ID)
+	if err != nil {
+		log.WithError(err).Errorf("cannot get user channel")
+	}
+	data := a.HandleMessage(m.Content + fmt.Sprintf(" --channel %s --user '%s' --userchannel %s", m.ChannelID, m.Author.Username, userChannel.ID))
+
+	if a.returnChannel == userChannel.ID {
+		_, _ = s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("I dmed you the results %s!", m.Author.Username))
+	}
+	_, _ = s.ChannelMessageSend(a.returnChannel, fmt.Sprintf("```\n%s\n```", string(data)))
 }
 
 func (a *PegnetDiscordBot) HandleMessage(input string) string {
+	a.Lock()
+	defer a.Unlock()
 	out := bytes.NewBuffer([]byte{})
-	a.RootCmd().SetOut(out)
+	a.root.SetOut(out)
 
 	// Trim the newline
 	input = strings.TrimRight(input, "\n")
 
 	os.Args = strings.Split(input, " ")
-	err := a.RootCmd().Execute()
+	err := a.root.Execute()
 	if err != nil {
-		logrus.WithError(err).Error("root execute")
+		log.WithError(err).Error("root execute")
 	}
 
 	data, _ := ioutil.ReadAll(out)

@@ -24,6 +24,14 @@ func (a *PegnetDiscordBot) RootCmd() *cobra.Command {
 		},
 	}
 
+	root.PersistentFlags().String("channel", "", "discord channel the message is coming from")
+	root.PersistentFlags().String("user", "", "discord user the message is coming from")
+	root.PersistentFlags().String("userchannel", "", "discord channel to pm the user")
+
+	_ = root.Flags().MarkHidden("channel")
+	_ = root.Flags().MarkHidden("user")
+	_ = root.Flags().MarkHidden("userchannel")
+
 	root.AddCommand(a.Balance())
 	root.AddCommand(a.Performance())
 	return root
@@ -68,6 +76,7 @@ func (a *PegnetDiscordBot) Performance() *cobra.Command {
 				return
 			}
 
+			a.returnChannel, _ = cmd.Flags().GetString("userchannel")
 			Printf(cmd, string(PrettyMarshal(resp.Res)))
 		},
 	}
@@ -107,7 +116,7 @@ func (a *PegnetDiscordBot) Balance() *cobra.Command {
 			if v, _ := cmd.Flags().GetBool("raw"); v {
 				Printf(cmd, "%s: %d", pegAddress, bal)
 			} else {
-				Printf(cmd, "%s: %s", pegAddress, factom.FactoshiToFactoid(uint64(bal)))
+				Printf(cmd, "%s: %s %s", pegAddress, factom.FactoshiToFactoid(uint64(bal)), ticker)
 			}
 		},
 	}
