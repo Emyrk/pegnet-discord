@@ -5,13 +5,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
-	"github.com/pegnet/pegnet-node/node"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/pegnet/pegnet/api"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/pegnet/pegnet-node/node"
+	"github.com/sirupsen/logrus"
+	"github.com/zpatrick/go-config"
 )
 
 const PegNetCommunitySlack = "550312670528798755"
@@ -20,11 +24,13 @@ type PegnetDiscordBot struct {
 	token   string // Discord auth token
 	session *discordgo.Session
 
+	config   *config.Config
 	Node     *node.PegnetNode
+	API      *api.APIServer
 	cmdRegex *regexp.Regexp
 }
 
-func NewPegnetDiscordBot(token string) (*PegnetDiscordBot, error) {
+func NewPegnetDiscordBot(token string, config *config.Config) (*PegnetDiscordBot, error) {
 	p := new(PegnetDiscordBot)
 	p.token = token
 
@@ -40,16 +46,16 @@ func NewPegnetDiscordBot(token string) (*PegnetDiscordBot, error) {
 
 	p.session.AddHandler(p.messageCreate)
 	p.cmdRegex, _ = regexp.Compile("!pegnet.*")
-
+	p.config = config
 
 	return p, nil
 }
 
-func NewMockPegnetDiscordBot() (*PegnetDiscordBot, error) {
+func NewMockPegnetDiscordBot(config *config.Config) (*PegnetDiscordBot, error) {
 	p := new(PegnetDiscordBot)
 
-	p.session.AddHandler(p.messageCreate)
 	p.cmdRegex, _ = regexp.Compile("!pegnet.*")
+	p.config = config
 
 	return p, nil
 }
@@ -108,15 +114,17 @@ func (a *PegnetDiscordBot) messageCreate(s *discordgo.Session, m *discordgo.Mess
 	_, _ = s.ChannelMessageSend(m.ChannelID, string(data))
 }
 
-
-func (a *PegnetDiscordBot) HandleMessage(input string)  string {
+func (a *PegnetDiscordBot) HandleMessage(input string) string {
 	out := bytes.NewBuffer([]byte{})
 	a.RootCmd().SetOut(out)
+
+	// Trim the newline
+	input = strings.TrimRight(input, "\n")
 
 	os.Args = strings.Split(input, " ")
 	err := a.RootCmd().Execute()
 	if err != nil {
-	logrus.WithError(err).Error("root execute")
+		logrus.WithError(err).Error("root execute")
 	}
 
 	data, _ := ioutil.ReadAll(out)

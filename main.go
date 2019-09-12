@@ -21,6 +21,7 @@ import (
 func init() {
 	// Reset commands, so `pegnetnode` is the only h
 	pcmd.RootCmd.ResetCommands()
+	pcmd.RootCmd.Flags().Bool("mock", false, "Do not actually connect to discord")
 	pcmd.RootCmd.Run = func(cmd *cobra.Command, args []string) {
 		discordNode.Run(cmd, args)
 	}
@@ -60,16 +61,26 @@ var discordNode = &cobra.Command{
 		if err != nil {
 			pcmd.CmdError(cmd, err)
 		}
-		go apiserver.Listen(apiport)
+		var _ = apiport
+		//go apiserver.Listen(apiport)
 
+		mock, _ := cmd.Flags().GetBool("mock")
+		var bot *discord.PegnetDiscordBot
 		// Launch the discord bot
-		bot, err := discord.NewPegnetDiscordBot("")
+		if mock {
+			bot, err = discord.NewMockPegnetDiscordBot(pcmd.Config)
+		} else {
+			bot, err = discord.NewPegnetDiscordBot("", pcmd.Config)
+		}
 		if err != nil {
 			pcmd.CmdError(cmd, err)
 		}
 		bot.Node = pegnetnode
+		bot.API = apiserver
 
 		common.GlobalExitHandler.AddCancel(cancel)
+
+		bot.Run(ctx)
 
 	},
 }
