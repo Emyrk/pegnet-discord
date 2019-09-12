@@ -22,7 +22,7 @@ func init() {
 	// Reset commands, so `pegnetnode` is the only h
 	pcmd.RootCmd.ResetCommands()
 	pcmd.RootCmd.Run = func(cmd *cobra.Command, args []string) {
-		pegnetNode.Run(cmd, args)
+		discordNode.Run(cmd, args)
 	}
 }
 
@@ -31,7 +31,7 @@ func main() {
 	pcmd.Execute()
 }
 
-var pegnetNode = &cobra.Command{
+var discordNode = &cobra.Command{
 	Use:   "node",
 	Short: "Runs a pegnet node",
 	Run: func(cmd *cobra.Command, args []string) {

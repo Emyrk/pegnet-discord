@@ -1,16 +1,17 @@
 package discord
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
-	"os"
-	"regexp"
-	"strings"
-	"time"
-
 	"github.com/bwmarrin/discordgo"
 	"github.com/pegnet/pegnet-node/node"
 	"github.com/sirupsen/logrus"
+	"io/ioutil"
+	"os"
+	"regexp"
+	"strings"
 )
 
 const PegNetCommunitySlack = "550312670528798755"
@@ -40,6 +41,16 @@ func NewPegnetDiscordBot(token string) (*PegnetDiscordBot, error) {
 	p.session.AddHandler(p.messageCreate)
 	p.cmdRegex, _ = regexp.Compile("!pegnet.*")
 
+
+	return p, nil
+}
+
+func NewMockPegnetDiscordBot() (*PegnetDiscordBot, error) {
+	p := new(PegnetDiscordBot)
+
+	p.session.AddHandler(p.messageCreate)
+	p.cmdRegex, _ = regexp.Compile("!pegnet.*")
+
 	return p, nil
 }
 
@@ -52,7 +63,11 @@ func (a *PegnetDiscordBot) Run(ctx context.Context) {
 		default:
 		}
 
-		time.Sleep(time.Second)
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Enter text: ")
+		text, _ := reader.ReadString('\n')
+		resp := a.HandleMessage(text)
+		fmt.Println(resp)
 	}
 }
 
@@ -89,19 +104,26 @@ func (a *PegnetDiscordBot) messageCreate(s *discordgo.Session, m *discordgo.Mess
 		return
 	}
 
-	os.Args = strings.Split(m.Content, " ")
+	data := a.HandleMessage(m.Content)
+	_, _ = s.ChannelMessageSend(m.ChannelID, string(data))
+}
+
+
+func (a *PegnetDiscordBot) HandleMessage(input string)  string {
+	out := bytes.NewBuffer([]byte{})
+	a.RootCmd().SetOut(out)
+
+	os.Args = strings.Split(input, " ")
 	err := a.RootCmd().Execute()
 	if err != nil {
-		logrus.WithError(err).Error("root execute")
+	logrus.WithError(err).Error("root execute")
 	}
 
-	// If the message is "ping" reply with "Pong!"
-	if m.Content == "ping" {
-		s.ChannelMessageSend(m.ChannelID, "Pong!")
-	}
+	data, _ := ioutil.ReadAll(out)
 
-	// If the message is "pong" reply with "Ping!"
-	if m.Content == "pong" {
-		s.ChannelMessageSend(m.ChannelID, "Ping!")
-	}
+	return string(data)
+}
+
+func (a *PegnetDiscordBot) s() {
+
 }
