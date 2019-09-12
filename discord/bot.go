@@ -15,7 +15,6 @@ import (
 	"github.com/pegnet/pegnet-node/node"
 	"github.com/pegnet/pegnet/api"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"github.com/zpatrick/go-config"
 )
 
@@ -29,8 +28,6 @@ type PegnetDiscordBot struct {
 	Node     *node.PegnetNode
 	API      *api.APIServer
 	cmdRegex *regexp.Regexp
-
-	root *cobra.Command
 
 	// TODO: This is hacky
 	sync.Mutex
@@ -54,7 +51,6 @@ func NewPegnetDiscordBot(token string, config *config.Config) (*PegnetDiscordBot
 	p.session.AddHandler(p.messageCreate)
 	p.cmdRegex, _ = regexp.Compile("!pegnet.*")
 	p.config = config
-	p.root = p.RootCmd()
 
 	return p, nil
 }
@@ -135,13 +131,14 @@ func (a *PegnetDiscordBot) HandleMessage(input string) string {
 	a.Lock()
 	defer a.Unlock()
 	out := bytes.NewBuffer([]byte{})
-	a.root.SetOut(out)
+	rootcmd := a.RootCmd()
+	rootcmd.SetOut(out)
 
 	// Trim the newline
 	input = strings.TrimRight(input, "\n")
 
 	os.Args = strings.Split(input, " ")
-	err := a.root.Execute()
+	err := rootcmd.Execute()
 	if err != nil {
 		log.WithError(err).Error("root execute")
 	}
