@@ -3,41 +3,37 @@ package discord
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http/httptest"
 
-	"github.com/pegnet/pegnet/api"
-
 	"github.com/FactomProject/factom"
-
+	"github.com/bwmarrin/discordgo"
+	"github.com/pegnet/pegnet/api"
 	"github.com/pegnet/pegnet/cmd"
 	"github.com/pegnet/pegnet/common"
 	"github.com/spf13/cobra"
 )
 
-func (a *PegnetDiscordBot) RootCmd() *cobra.Command {
+func (a *PegnetDiscordBot) Root(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
 	root := &cobra.Command{
 		Use: "!pegnet <command>",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			out := bytes.NewBuffer([]byte{})
+			cmd.SetOutput(out)
+			_ = a.MessageBack(session, message, string(out.Bytes()))
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			var _ = cmd.Help()
 		},
 	}
 
-	root.PersistentFlags().String("channel", "", "discord channel the message is coming from")
-	root.PersistentFlags().String("user", "", "discord user the message is coming from")
-	root.PersistentFlags().String("userchannel", "", "discord channel to pm the user")
+	root.AddCommand(a.Performance(session, message))
+	root.AddCommand(a.Balance(session, message))
 
-	_ = root.Flags().MarkHidden("channel")
-	_ = root.Flags().MarkHidden("user")
-	_ = root.Flags().MarkHidden("userchannel")
-
-	root.AddCommand(a.Balance())
-	root.AddCommand(a.Performance())
 	return root
 }
 
-func (a *PegnetDiscordBot) Performance() *cobra.Command {
+func (a *PegnetDiscordBot) Performance(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
 	getPerformance := &cobra.Command{
 		Use:   "performance <miner identifier> [--start START_BLOCK] [--end END_BLOCK]",
 		Short: "Returns the performance of the miner at the specified identifier.",
@@ -67,17 +63,16 @@ func (a *PegnetDiscordBot) Performance() *cobra.Command {
 
 			resp, err := a.HandleAPIRequest(&req)
 			if err != nil {
-				HandleError(cmd, err)
+				_ = a.MessageBack(session, message, err.Error())
 				return
 			}
 
 			if resp.Err != nil {
-				HandleErrorStr(cmd, string(PrettyMarshal(resp.Err)))
+				_ = a.MessageBack(session, message, string(PrettyMarshal(resp.Err)))
 				return
 			}
 
-			a.returnChannel, _ = cmd.Flags().GetString("userchannel")
-			Printf(cmd, string(PrettyMarshal(resp.Res)))
+			_ = a.PrivateMessage(session, message, string(PrettyMarshal(resp.Res)))
 		},
 	}
 
@@ -90,7 +85,7 @@ func (a *PegnetDiscordBot) Performance() *cobra.Command {
 	return getPerformance
 }
 
-func (a *PegnetDiscordBot) Balance() *cobra.Command {
+func (a *PegnetDiscordBot) Balance(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
 	localCmd := &cobra.Command{
 		Use:     "balance <type> <factoid address>",
 		Short:   "Returns the balance for the given asset type and Factoid address",
@@ -102,21 +97,21 @@ func (a *PegnetDiscordBot) Balance() *cobra.Command {
 
 			networkString, err := common.LoadConfigNetwork(a.config)
 			if err != nil {
-				HandleError(cmd, fmt.Errorf("Error: invalid network string"))
+				_ = a.MessageBack(session, message, "Error: invalid network string")
 				return
 			}
 			pegAddress, err := common.ConvertFCTtoPegNetAsset(networkString, ticker, address)
 			if err != nil {
-				HandleError(cmd, fmt.Errorf("Error: invalid Factoid address"))
+				_ = a.MessageBack(session, message, "Error: invalid Factoid address")
 				return
 			}
 
 			bal := a.Node.PegnetGrader.Balances.GetBalance(pegAddress)
 
 			if v, _ := cmd.Flags().GetBool("raw"); v {
-				Printf(cmd, "%s: %d", pegAddress, bal)
+				_ = a.MessageBackf(session, message, "%s: %d", pegAddress, bal)
 			} else {
-				Printf(cmd, "%s: %s %s", pegAddress, factom.FactoshiToFactoid(uint64(bal)), ticker)
+				_ = a.MessageBackf(session, message, "%s: %s %s", pegAddress, factom.FactoshiToFactoid(uint64(bal)), ticker)
 			}
 		},
 	}
@@ -147,16 +142,4 @@ func PrettyMarshal(v interface{}) []byte {
 	var buf bytes.Buffer
 	_ = json.Indent(&buf, d, "", "  ")
 	return buf.Bytes()
-}
-
-func Printf(cmd *cobra.Command, format string, args ...interface{}) {
-	_, _ = fmt.Fprintf(cmd.OutOrStderr(), format, args...)
-}
-
-func HandleErrorStr(cmd *cobra.Command, err string) {
-	HandleError(cmd, fmt.Errorf(err))
-}
-
-func HandleError(cmd *cobra.Command, err error) {
-	_, _ = fmt.Fprintf(cmd.OutOrStderr(), err.Error())
 }

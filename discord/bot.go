@@ -2,19 +2,15 @@ package discord
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/pegnet/pegnet-node/node"
 	"github.com/pegnet/pegnet/api"
-	log "github.com/sirupsen/logrus"
 	"github.com/zpatrick/go-config"
 )
 
@@ -48,7 +44,7 @@ func NewPegnetDiscordBot(token string, config *config.Config) (*PegnetDiscordBot
 		return nil, err
 	}
 
-	p.session.AddHandler(p.messageCreate)
+	p.session.AddHandler(p.DiscordMessage)
 	p.cmdRegex, _ = regexp.Compile("!pegnet.*")
 	p.config = config
 
@@ -76,8 +72,9 @@ func (a *PegnetDiscordBot) Run(ctx context.Context) {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Enter text: ")
 		text, _ := reader.ReadString('\n')
-		resp := a.HandleMessage(text)
-		fmt.Println(resp)
+		// resp := a.HandleMessage(text)
+		fmt.Println("Sorry...", text)
+		// fmt.Println(resp)
 	}
 }
 
@@ -98,56 +95,4 @@ func (a *PegnetDiscordBot) ListChannels() {
 
 func (a *PegnetDiscordBot) GetCommunitySlack() (*discordgo.Guild, error) {
 	return a.session.Guild(PegNetCommunitySlack)
-}
-
-// This function will be called (due to AddHandler above) every time a new
-// message is created on any channel that the autenticated bot has access to.
-func (a *PegnetDiscordBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// Ignore all messages created by the bot itself
-	// This isn't required in this specific example but it's a good practice.
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
-
-	// Check if the message has the correct root cmd
-	if !a.cmdRegex.Match([]byte(m.Content)) {
-		return
-	}
-
-	a.returnChannel = m.ChannelID
-	userChannel, err := a.session.UserChannelCreate(m.Author.ID)
-	if err != nil {
-		log.WithError(err).Errorf("cannot get user channel")
-	}
-	data := a.HandleMessage(m.Content + fmt.Sprintf(" --channel %s --user '%s' --userchannel %s", m.ChannelID, m.Author.Username, userChannel.ID))
-
-	if a.returnChannel == userChannel.ID {
-		_, _ = s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("I dmed you the results %s!", m.Author.Username))
-	}
-	_, _ = s.ChannelMessageSend(a.returnChannel, fmt.Sprintf("```\n%s\n```", string(data)))
-}
-
-func (a *PegnetDiscordBot) HandleMessage(input string) string {
-	a.Lock()
-	defer a.Unlock()
-	out := bytes.NewBuffer([]byte{})
-	rootcmd := a.RootCmd()
-	rootcmd.SetOut(out)
-
-	// Trim the newline
-	input = strings.TrimRight(input, "\n")
-
-	os.Args = strings.Split(input, " ")
-	err := rootcmd.Execute()
-	if err != nil {
-		log.WithError(err).Error("root execute")
-	}
-
-	data, _ := ioutil.ReadAll(out)
-
-	return string(data)
-}
-
-func (a *PegnetDiscordBot) s() {
-
 }
