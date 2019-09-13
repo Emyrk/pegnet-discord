@@ -3,7 +3,9 @@ package discord
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http/httptest"
 
 	"github.com/FactomProject/factom"
@@ -29,6 +31,7 @@ func (a *PegnetDiscordBot) Root(session *discordgo.Session, message *discordgo.M
 
 	root.AddCommand(a.Performance(session, message))
 	root.AddCommand(a.Balance(session, message))
+	// root.AddCommand(a.WhoIs(session, message))
 
 	return root
 }
@@ -121,6 +124,51 @@ func (a *PegnetDiscordBot) Balance(session *discordgo.Session, message *discordg
 	return localCmd
 }
 
+func (a *PegnetDiscordBot) WhoIs(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
+	localCmd := &cobra.Command{
+		Use:     "whois [factoid address|identity ...] ",
+		Short:   "Attempts to figure out all the identities/coinbase addresses for someone",
+		Example: "!pegnet whois FA2jK2HcLnRdS94dEcU27rF3meoJfpUcZPSinpb7AwQvPRY6RL1Q",
+		Args:    cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			var identities []string
+			var payouts []string
+
+			next := a.Node.PegnetGrader.GetPreviousOPRBlock(math.MaxInt32)
+			for {
+				if next == nil {
+					break
+				}
+
+				for _, opr := range next.OPRs {
+					if NeedleInHackstack(args[1:], opr.CoinbaseAddress) {
+						payouts = append(payouts, opr.CoinbaseAddress)
+					}
+
+					if NeedleInHackstack(args[1:], opr.FactomDigitalID) {
+						identities = append(identities, opr.FactomDigitalID)
+					}
+				}
+				next = a.Node.PegnetGrader.GetPreviousOPRBlock(int32(next.Dbht))
+			}
+
+			var idStr string
+			for _, id := range identities {
+				idStr += fmt.Sprintf("%s\t%s", "\n", id)
+			}
+
+			var payStr string
+			for _, p := range payouts {
+				idStr += fmt.Sprintf("%s\t%s", "\n", p)
+			}
+
+			_ = a.MessageBackf(session, message, "Identities%s\nPayouts%s", idStr, payStr)
+		},
+	}
+
+	return localCmd
+}
+
 func (a *PegnetDiscordBot) HandleAPIRequest(req *api.PostRequest) (*api.PostResponse, error) {
 	data, err := json.Marshal(req)
 	if err != nil {
@@ -142,4 +190,13 @@ func PrettyMarshal(v interface{}) []byte {
 	var buf bytes.Buffer
 	_ = json.Indent(&buf, d, "", "  ")
 	return buf.Bytes()
+}
+
+func NeedleInHackstack(haystack []string, needle string) bool {
+	for _, a := range haystack {
+		if needle == a {
+			return true
+		}
+	}
+	return false
 }
