@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http/httptest"
+	"strconv"
 
 	"github.com/FactomProject/factom"
 	"github.com/bwmarrin/discordgo"
@@ -120,6 +121,40 @@ func (a *PegnetDiscordBot) Balance(session *discordgo.Session, message *discordg
 	}
 
 	localCmd.Flags().Bool("raw", false, "Return balances as their uint64 raw values")
+
+	return localCmd
+}
+
+func (a *PegnetDiscordBot) Winners(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
+	localCmd := &cobra.Command{
+		Use:     "winners <height> ",
+		Short:   "Attempts to figure out all the identities/coinbase addresses for someone",
+		Example: "!pegnet winners 209802",
+		Args:    cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			targetHeight, err := strconv.Atoi(args[1])
+			if err != nil {
+				_ = a.MessageBackf(session, message, err.Error())
+				return
+			}
+
+			block, err := a.Node.IOPRBlockStore.FetchOPRBlock(int64(targetHeight))
+			if err != nil {
+				_ = a.MessageBackf(session, message, err.Error())
+				return
+			}
+
+			if block == nil {
+				_ = a.MessageBackf(session, message, "There are no winners at block height %d", targetHeight)
+			} else {
+				str := fmt.Sprintf("Block Height %d. Total Oprs: %d", targetHeight, block.TotalNumberRecords)
+				for i, opr := range block.GradedOPRs[:a.Node.PegnetGrader.MinRecords(block.Dbht)] {
+					str += fmt.Sprintf("\n  %2d %x %s", i, opr.EntryHash, opr.FactomDigitalID)
+				}
+				_ = a.MessageBackf(session, message, str)
+			}
+		},
+	}
 
 	return localCmd
 }
