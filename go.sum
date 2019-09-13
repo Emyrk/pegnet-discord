@@ -183,6 +183,8 @@ github.com/pegnet/pegnet-node v0.0.0-20190904160413-d6240dbb2b65 h1:kWnQ19T/U/12
 github.com/pegnet/pegnet-node v0.0.0-20190904160413-d6240dbb2b65/go.mod h1:Az1Ijxxhf62kHahCHWqUzAuzXVgoOPjIh5qk8vX8XJw=
 github.com/pegnet/pegnet-node v0.0.0-20190911203800-003aca780943 h1:DqZn2sCdEYbiRDL5+sbdgdmxAAnWfTk9Z+65FIi7V7Y=
 github.com/pegnet/pegnet-node v0.0.0-20190911203800-003aca780943/go.mod h1:f/3ECc9pfAALH8AWR514rCtMRCBOt/4FeKdqKEnon2o=
+github.com/pegnet/pegnet-node v0.0.0-20190913151655-00dd60fba858 h1:O2+mwA9PD0L0Zbjvufjqiembz+MnrAb/0pUUicI0AkQ=
+github.com/pegnet/pegnet-node v0.0.0-20190913151655-00dd60fba858/go.mod h1:f/3ECc9pfAALH8AWR514rCtMRCBOt/4FeKdqKEnon2o=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pierrec/lz4 v2.0.5+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"strconv"
 
+	"github.com/pegnet/pegnet/opr"
+
 	"github.com/FactomProject/factom"
 	"github.com/bwmarrin/discordgo"
 	"github.com/pegnet/pegnet/api"
@@ -17,27 +19,68 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func (a *PegnetDiscordBot) Root(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
+func (a *PegnetDiscordBot) Root(session *discordgo.Session, message *discordgo.MessageCreate) *cobra.Command {
 	root := &cobra.Command{
 		Use: "!pegnet <command>",
-		PreRun: func(cmd *cobra.Command, args []string) {
-			out := bytes.NewBuffer([]byte{})
-			cmd.SetOutput(out)
-			_ = a.MessageBack(session, message, string(out.Bytes()))
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			//cmd.SetOut(out)
+			//cmd.SetErr(out)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			var _ = cmd.Help()
 		},
+
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			//str := string(out.Bytes())
+			//if len(str) > 0 {
+			//	_ = a.CodedMessageBack(a.session, message, str)
+			//}
+		},
 	}
 
-	root.AddCommand(a.Performance(session, message))
-	root.AddCommand(a.Balance(session, message))
-	// root.AddCommand(a.WhoIs(session, message))
+	root.AddCommand(a.Performance(a.session, message))
+	root.AddCommand(a.Balance(a.session, message))
+	root.AddCommand(a.WhoIs(a.session, message))
+	root.AddCommand(a.Winners(a.session, message))
 
 	return root
 }
 
-func (a *PegnetDiscordBot) Performance(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
+func (a *PegnetDiscordBot) Supply(session *discordgo.Session, message *discordgo.MessageCreate) *cobra.Command {
+	getPerformance := &cobra.Command{
+		Use:       "performance total <burns|rewards>",
+		Short:     "Returns the total number of FCT burns or PEG rewards ever issued",
+		Example:   "!pegnet total burns\n!pegnet total rewards",
+		ValidArgs: []string{"burns", "rewards"},
+		Args:      cobra.OnlyValidArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			asset := ""
+			switch args[0] {
+			case "burns":
+				asset = "FCT"
+			case "rewards":
+				asset = "PEG"
+			default:
+				_ = a.CodedMessageBackf(session, message, "'%s' is not a valid argument", args[0])
+				return
+			}
+
+			var _ = asset
+
+			// TODO: Finish this
+		},
+	}
+
+	// RPC Wrappers
+	getPerformance.Flags().Int64("start", -1, "First block in the block range requested "+
+		"(negative numbers are interpreted relative to current block head)")
+	getPerformance.Flags().Int64("end", -1, "Last block in the block range requested "+
+		"(negative numbers are ignored)")
+
+	return getPerformance
+}
+
+func (a *PegnetDiscordBot) Performance(session *discordgo.Session, message *discordgo.MessageCreate) *cobra.Command {
 	getPerformance := &cobra.Command{
 		Use:   "performance <miner identifier> [--start START_BLOCK] [--end END_BLOCK]",
 		Short: "Returns the performance of the miner at the specified identifier.",
@@ -67,16 +110,16 @@ func (a *PegnetDiscordBot) Performance(session *discordgo.Session, message *disc
 
 			resp, err := a.HandleAPIRequest(&req)
 			if err != nil {
-				_ = a.MessageBack(session, message, err.Error())
+				_ = a.CodedMessageBack(session, message, err.Error())
 				return
 			}
 
 			if resp.Err != nil {
-				_ = a.MessageBack(session, message, string(PrettyMarshal(resp.Err)))
+				_ = a.CodedMessageBack(session, message, string(PrettyMarshal(resp.Err)))
 				return
 			}
-
-			_ = a.PrivateMessage(session, message, string(PrettyMarshal(resp.Res)))
+			_ = a.CodedMessageBackf(session, message, "Hey %s, I sent you a pm with the results!", message.Author.Username)
+			_ = a.CodedPrivateMessage(session, message, string(PrettyMarshal(resp.Res)))
 		},
 	}
 
@@ -89,7 +132,7 @@ func (a *PegnetDiscordBot) Performance(session *discordgo.Session, message *disc
 	return getPerformance
 }
 
-func (a *PegnetDiscordBot) Balance(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
+func (a *PegnetDiscordBot) Balance(session *discordgo.Session, message *discordgo.MessageCreate) *cobra.Command {
 	localCmd := &cobra.Command{
 		Use:     "balance <type> <factoid address>",
 		Short:   "Returns the balance for the given asset type and Factoid address",
@@ -101,21 +144,21 @@ func (a *PegnetDiscordBot) Balance(session *discordgo.Session, message *discordg
 
 			networkString, err := common.LoadConfigNetwork(a.config)
 			if err != nil {
-				_ = a.MessageBack(session, message, "Error: invalid network string")
+				_ = a.CodedMessageBack(session, message, "Error: invalid network string")
 				return
 			}
 			pegAddress, err := common.ConvertFCTtoPegNetAsset(networkString, ticker, address)
 			if err != nil {
-				_ = a.MessageBack(session, message, "Error: invalid Factoid address")
+				_ = a.CodedMessageBack(session, message, "Error: invalid Factoid address")
 				return
 			}
 
 			bal := a.Node.PegnetGrader.Balances.GetBalance(pegAddress)
 
 			if v, _ := cmd.Flags().GetBool("raw"); v {
-				_ = a.MessageBackf(session, message, "%s: %d", pegAddress, bal)
+				_ = a.CodedMessageBackf(session, message, "%s: %d", pegAddress, bal)
 			} else {
-				_ = a.MessageBackf(session, message, "%s: %s %s", pegAddress, factom.FactoshiToFactoid(uint64(bal)), ticker)
+				_ = a.CodedMessageBackf(session, message, "%s: %s %s", pegAddress, factom.FactoshiToFactoid(uint64(bal)), ticker)
 			}
 		},
 	}
@@ -125,33 +168,38 @@ func (a *PegnetDiscordBot) Balance(session *discordgo.Session, message *discordg
 	return localCmd
 }
 
-func (a *PegnetDiscordBot) Winners(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
+func (a *PegnetDiscordBot) Winners(session *discordgo.Session, message *discordgo.MessageCreate) *cobra.Command {
 	localCmd := &cobra.Command{
 		Use:     "winners <height> ",
 		Short:   "Attempts to figure out all the identities/coinbase addresses for someone",
 		Example: "!pegnet winners 209802",
 		Args:    cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			targetHeight, err := strconv.Atoi(args[1])
+			targetHeight, err := strconv.Atoi(args[0])
 			if err != nil {
-				_ = a.MessageBackf(session, message, err.Error())
+				_ = a.CodedMessageBackf(session, message, err.Error())
 				return
 			}
 
-			block, err := a.Node.IOPRBlockStore.FetchOPRBlock(int64(targetHeight))
+			var block *opr.OprBlock
+			if targetHeight == 0 {
+				block = a.Node.PegnetGrader.GetPreviousOPRBlock(int32(math.MaxInt32 - 1))
+			} else {
+				block, err = a.Node.IOPRBlockStore.FetchOPRBlock(int64(targetHeight))
+			}
 			if err != nil {
-				_ = a.MessageBackf(session, message, err.Error())
+				_ = a.CodedMessageBackf(session, message, "no block found at %d", targetHeight)
 				return
 			}
 
 			if block == nil {
-				_ = a.MessageBackf(session, message, "There are no winners at block height %d", targetHeight)
+				_ = a.CodedMessageBackf(session, message, "There are no winners at block height %d", block.Dbht)
 			} else {
-				str := fmt.Sprintf("Block Height %d. Total Oprs: %d", targetHeight, block.TotalNumberRecords)
+				str := fmt.Sprintf("Block Height %d. Total Oprs: %d", block.Dbht, block.TotalNumberRecords)
 				for i, opr := range block.GradedOPRs[:a.Node.PegnetGrader.MinRecords(block.Dbht)] {
 					str += fmt.Sprintf("\n  %2d %x %s", i, opr.EntryHash, opr.FactomDigitalID)
 				}
-				_ = a.MessageBackf(session, message, str)
+				_ = a.CodedMessageBackf(session, message, str)
 			}
 		},
 	}
@@ -159,15 +207,15 @@ func (a *PegnetDiscordBot) Winners(session *discordgo.Session, message *discordg
 	return localCmd
 }
 
-func (a *PegnetDiscordBot) WhoIs(session *discordgo.Session, message *discordgo.Message) *cobra.Command {
+func (a *PegnetDiscordBot) WhoIs(session *discordgo.Session, message *discordgo.MessageCreate) *cobra.Command {
 	localCmd := &cobra.Command{
 		Use:     "whois [factoid address|identity ...] ",
 		Short:   "Attempts to figure out all the identities/coinbase addresses for someone",
 		Example: "!pegnet whois FA2jK2HcLnRdS94dEcU27rF3meoJfpUcZPSinpb7AwQvPRY6RL1Q",
 		Args:    cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			var identities []string
-			var payouts []string
+			identities := make(map[string]int)
+			payouts := make(map[string]int)
 
 			next := a.Node.PegnetGrader.GetPreviousOPRBlock(math.MaxInt32)
 			for {
@@ -176,28 +224,40 @@ func (a *PegnetDiscordBot) WhoIs(session *discordgo.Session, message *discordgo.
 				}
 
 				for _, opr := range next.OPRs {
-					if NeedleInHackstack(args[1:], opr.CoinbaseAddress) {
-						payouts = append(payouts, opr.CoinbaseAddress)
-					}
-
-					if NeedleInHackstack(args[1:], opr.FactomDigitalID) {
-						identities = append(identities, opr.FactomDigitalID)
+					if NeedleInHackstack(args[:], opr.CoinbaseAddress) || NeedleInHackstack(args[:], opr.FactomDigitalID) {
+						payouts[opr.CoinbaseAddress] += 1
+						identities[opr.FactomDigitalID] += 1
 					}
 				}
 				next = a.Node.PegnetGrader.GetPreviousOPRBlock(int32(next.Dbht))
 			}
 
 			var idStr string
-			for _, id := range identities {
-				idStr += fmt.Sprintf("%s\t%s", "\n", id)
+			count := 0
+			for id := range identities {
+				idStr += fmt.Sprintf("\n\t%s", id)
+				count++
+				if count > 15 {
+					idStr += fmt.Sprintf("\n\t... %d more not listed", len(identities)-15)
+					break
+				}
 			}
 
+			count = 0
 			var payStr string
-			for _, p := range payouts {
-				idStr += fmt.Sprintf("%s\t%s", "\n", p)
+			for p := range payouts {
+				payStr += fmt.Sprintf("\n\t%s", p)
+				count++
+				if count > 15 {
+					payStr += fmt.Sprintf("\n\t... %d more not listed", len(identities)-15)
+					break
+				}
 			}
 
-			_ = a.MessageBackf(session, message, "Identities%s\nPayouts%s", idStr, payStr)
+			str := fmt.Sprintf("Identities%s\nPayouts%s", idStr, payStr)
+
+			fmt.Println(str)
+			_ = a.CodedMessageBack(session, message, str)
 		},
 	}
 
