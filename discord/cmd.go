@@ -255,8 +255,6 @@ func (a *PegnetDiscordBot) WhoIs(session *discordgo.Session, message *discordgo.
 			}
 
 			str := fmt.Sprintf("Identities%s\nPayouts%s", idStr, payStr)
-
-			fmt.Println(str)
 			_ = a.CodedMessageBack(session, message, str)
 		},
 	}
