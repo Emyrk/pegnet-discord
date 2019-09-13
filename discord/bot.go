@@ -11,10 +11,13 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/pegnet/pegnet-node/node"
 	"github.com/pegnet/pegnet/api"
+	"github.com/pegnet/pegnet/common"
 	"github.com/zpatrick/go-config"
 )
 
 const PegNetCommunitySlack = "550312670528798755"
+const TestZoneChannel = "621819950851555358"
+const BotCommunicationChannel = "622075411123273751"
 
 type PegnetDiscordBot struct {
 	token   string // Discord auth token
@@ -47,6 +50,15 @@ func NewPegnetDiscordBot(token string, config *config.Config) (*PegnetDiscordBot
 	p.session.AddHandler(p.DiscordMessage)
 	p.cmdRegex, _ = regexp.Compile("!pegnet.*")
 	p.config = config
+
+	common.GlobalExitHandler.AddExit(func() error {
+		msg := fmt.Sprintf(":x:  I'm going offline. Sorry for the inconvience, but I'm not being hosted on the cloud yet :cry: ")
+		_, err := p.session.ChannelMessageSend(BotCommunicationChannel, msg)
+		return err
+	})
+
+	msg := ":white_check_mark:  Hey I'm back online!"
+	_, _ = p.session.ChannelMessageSend(BotCommunicationChannel, msg)
 
 	return p, nil
 }
