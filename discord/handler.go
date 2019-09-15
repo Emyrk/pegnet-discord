@@ -14,8 +14,13 @@ import (
 func (a *PegnetDiscordBot) DiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.
-	if m.Author.ID == s.State.User.ID {
+	// Reject Mr or Junior
+	if m.Author.ID == s.State.User.ID || m.Author.ID == "622875359813042190" || m.Author.ID == "621815369962881024" {
 		return
+	}
+
+	if a.EasterEggHandling(s, m) {
+		return // Hehe
 	}
 
 	// Check if the message has the correct root cmd
@@ -61,15 +66,23 @@ func (a *PegnetDiscordBot) CodedPrivateMessage(session *discordgo.Session, messa
 	return nil
 }
 
-func (a *PegnetDiscordBot) CodedMessageBackf(session *discordgo.Session, message *discordgo.MessageCreate, format string, args ...interface{}) error {
-	return a.CodedMessageBack(session, message, fmt.Sprintf(format, args...))
+func (a *PegnetDiscordBot) MessageBackf(session *discordgo.Session, message *discordgo.MessageCreate, format string, args ...interface{}) error {
+	return a.MessageBack(session, message, fmt.Sprintf(format, args...))
 }
 
-func (a *PegnetDiscordBot) CodedMessageBack(session *discordgo.Session, message *discordgo.MessageCreate, send string) error {
-	_, err := session.ChannelMessageSend(message.ChannelID, fmt.Sprintf("```\n%s```", send))
+func (a *PegnetDiscordBot) MessageBack(session *discordgo.Session, message *discordgo.MessageCreate, send string) error {
+	_, err := session.ChannelMessageSend(message.ChannelID, send)
 	if err != nil {
 		log.WithError(err).Errorf("failed to send message")
 		return err
 	}
 	return nil
+}
+
+func (a *PegnetDiscordBot) CodedMessageBackf(session *discordgo.Session, message *discordgo.MessageCreate, format string, args ...interface{}) error {
+	return a.CodedMessageBack(session, message, fmt.Sprintf(format, args...))
+}
+
+func (a *PegnetDiscordBot) CodedMessageBack(session *discordgo.Session, message *discordgo.MessageCreate, send string) error {
+	return a.MessageBack(session, message, fmt.Sprintf("```\n%s```", send))
 }

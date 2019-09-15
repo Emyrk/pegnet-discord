@@ -42,8 +42,22 @@ func (a *PegnetDiscordBot) Root(session *discordgo.Session, message *discordgo.M
 	root.AddCommand(a.Balance(a.session, message))
 	root.AddCommand(a.WhoIs(a.session, message))
 	root.AddCommand(a.Winners(a.session, message))
+	root.AddCommand(a.Mine(a.session, message))
 
 	return root
+}
+
+func (a *PegnetDiscordBot) Mine(session *discordgo.Session, message *discordgo.MessageCreate) *cobra.Command {
+	mine := &cobra.Command{
+		Use:     "mine",
+		Short:   "Begins mining PEG for the discord user that issued the command",
+		Example: "!pegnet mine --miners 4 --top 3",
+		Run: func(cmd *cobra.Command, args []string) {
+			_ = a.CodedMessageBackf(session, message, "Sorry, I lost my pickaxe awhile back. Maybe another time.")
+		},
+	}
+
+	return mine
 }
 
 func (a *PegnetDiscordBot) Supply(session *discordgo.Session, message *discordgo.MessageCreate) *cobra.Command {

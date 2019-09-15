@@ -179,6 +179,8 @@ github.com/pegnet/pegnet v0.0.3-0.20190912145058-6f85bb27e277 h1:q7ruXl1XYiCviIU
 github.com/pegnet/pegnet v0.0.3-0.20190912145058-6f85bb27e277/go.mod h1:eqFfa+OGNwuygCKPH/HDnRtwBQBx3gGoJu67Np5PC7c=
 github.com/pegnet/pegnet v0.1.1 h1:7jlDiVAzU218zq35p0KCgDQmaubJjHClucrkmnx+WD8=
 github.com/pegnet/pegnet v0.1.1/go.mod h1:kexmG3G+4DDZ3LKxXFBVClugkEY9jRT8adSJ3brM3yo=
+github.com/pegnet/pegnet v0.2.0 h1:HAdHYXeWrzolpd7Mt06wGkjtXPAbjmBfXaQTtD0D5xk=
+github.com/pegnet/pegnet v0.2.0/go.mod h1:eqFfa+OGNwuygCKPH/HDnRtwBQBx3gGoJu67Np5PC7c=
 github.com/pegnet/pegnet-node v0.0.0-20190904160413-d6240dbb2b65 h1:kWnQ19T/U/12EoxvC5LsumZMF7xQT1bu5nfn4/bQBnY=
 github.com/pegnet/pegnet-node v0.0.0-20190904160413-d6240dbb2b65/go.mod h1:Az1Ijxxhf62kHahCHWqUzAuzXVgoOPjIh5qk8vX8XJw=
 github.com/pegnet/pegnet-node v0.0.0-20190911203800-003aca780943 h1:DqZn2sCdEYbiRDL5+sbdgdmxAAnWfTk9Z+65FIi7V7Y=
