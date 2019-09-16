@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"math/rand"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 
 	"github.com/pegnet/pegnet/opr"
 
@@ -213,10 +215,24 @@ func (a *PegnetDiscordBot) Winners(session *discordgo.Session, message *discordg
 				for i, opr := range block.GradedOPRs[:a.Node.PegnetGrader.MinRecords(block.Dbht)] {
 					str += fmt.Sprintf("\n  %2d %x %s", i, opr.EntryHash, opr.FactomDigitalID)
 				}
+
+				// This is for an inside joke
+				if ok, _ := cmd.Flags().GetBool("extra-chrome"); ok {
+					all := strings.Split(str, "")
+					for i := 0; i < len(all)/40; i++ {
+						index := rand.Intn(len(all))
+						end := append([]string{"'"}, all[index:]...)
+						all = append(all[:index], end...)
+					}
+					str = strings.Join(all, "")
+				}
 				_ = a.CodedMessageBackf(session, message, str)
 			}
 		},
 	}
+
+	localCmd.Flags().Bool("extra-chrome", false, "Uhhh....")
+	_ = localCmd.Flags().MarkHidden("extra-chrome")
 
 	return localCmd
 }
