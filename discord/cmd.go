@@ -207,7 +207,7 @@ func (a *PegnetDiscordBot) Winners(session *discordgo.Session, message *discordg
 			}
 
 			if block == nil {
-				_ = a.CodedMessageBackf(session, message, "There are no winners at block height %d", block.Dbht)
+				_ = a.CodedMessageBackf(session, message, "There are no winners at block height %d", targetHeight)
 			} else {
 				str := fmt.Sprintf("Block Height %d. Total Oprs: %d", block.Dbht, block.TotalNumberRecords)
 				for i, opr := range block.GradedOPRs[:a.Node.PegnetGrader.MinRecords(block.Dbht)] {

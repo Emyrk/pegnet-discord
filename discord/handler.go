@@ -84,5 +84,24 @@ func (a *PegnetDiscordBot) CodedMessageBackf(session *discordgo.Session, message
 }
 
 func (a *PegnetDiscordBot) CodedMessageBack(session *discordgo.Session, message *discordgo.MessageCreate, send string) error {
+	if len(send) > 2000 {
+		var parts []string
+		list := strings.Split(send, "\n")
+		cur := ""
+		for _, item := range list {
+			if len(cur)+len(item) > 1900 {
+				parts = append(parts, cur)
+				cur = ""
+			}
+			cur += item + "\n"
+		}
+
+		parts = append(parts, cur)
+		for _, part := range parts {
+			_ = a.MessageBack(session, message, fmt.Sprintf("```\n%s```", part))
+		}
+		return nil
+	}
+
 	return a.MessageBack(session, message, fmt.Sprintf("```\n%s```", send))
 }
