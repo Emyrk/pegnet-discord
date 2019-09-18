@@ -12,12 +12,16 @@ import (
 	"github.com/pegnet/pegnet-node/node"
 	"github.com/pegnet/pegnet/api"
 	"github.com/pegnet/pegnet/common"
-	"github.com/zpatrick/go-config"
+	config "github.com/zpatrick/go-config"
 )
 
 const PegNetCommunitySlack = "550312670528798755"
 const TestZoneChannel = "621819950851555358"
 const BotCommunicationChannel = "622075411123273751"
+
+var BlackListedChannels = map[string]bool{
+	"550312670528798761": true,
+}
 
 type PegnetDiscordBot struct {
 	token   string // Discord auth token
