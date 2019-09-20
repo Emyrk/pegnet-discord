@@ -25,6 +25,10 @@ func (a *PegnetDiscordBot) DiscordMessage(s *discordgo.Session, m *discordgo.Mes
 		return
 	}
 
+	if BlackListedChannels[m.ChannelID] {
+		return
+	}
+
 	if a.EasterEggHandling(s, m) {
 		return // Hehe
 	}
