@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http/httptest"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -45,6 +46,7 @@ func (a *PegnetDiscordBot) Root(session *discordgo.Session, message *discordgo.M
 	root.AddCommand(a.WhoIs(a.session, message))
 	root.AddCommand(a.Winners(a.session, message))
 	root.AddCommand(a.Mine(a.session, message))
+	root.AddCommand(a.Difficulty(a.session, message))
 
 	return root
 }
@@ -288,6 +290,55 @@ func (a *PegnetDiscordBot) WhoIs(session *discordgo.Session, message *discordgo.
 			_ = a.CodedMessageBack(session, message, str)
 		},
 	}
+
+	return localCmd
+}
+
+func (a *PegnetDiscordBot) Difficulty(session *discordgo.Session, message *discordgo.MessageCreate) *cobra.Command {
+	localCmd := &cobra.Command{
+		Use:     "difficulty <dbheight>",
+		Short:   "Prints out some difficulty stats",
+		Example: "!pegnet difficulty 210596 --target 200",
+		Args:    cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			var block *opr.OprBlock
+
+			if args[0] == "top" || args[0] == "0" {
+				block = a.Node.PegnetGrader.GetPreviousOPRBlock(math.MaxInt32)
+			} else {
+				dbht, err := strconv.Atoi(args[0])
+				if err != nil {
+					_ = a.CodedMessageBackf(session, message, "could not parse height: %s", err.Error())
+					return
+				}
+
+				block, err = a.Node.PegnetGrader.BlockStore.FetchOPRBlock(int64(dbht))
+				if err != nil {
+					_ = a.CodedMessageBackf(session, message, "could not find height %d: %s", dbht, err.Error())
+					return
+				}
+			}
+
+			if block == nil {
+				_ = a.CodedMessageBackf(session, message, "block not found")
+				return
+			}
+
+			target, _ := cmd.Flags().GetInt("target")
+
+			// sort before we calculate
+			sort.SliceStable(block.GradedOPRs, func(i, j int) bool { return block.GradedOPRs[i].Difficulty > block.GradedOPRs[j].Difficulty })
+			cutoff := opr.CalculateMinimumDifficultyFromOPRs(block.GradedOPRs, target)
+
+			_ = a.CodedMessageBackf(session, message, "Block Height %d, Cutoff %d\n\t%12s: %x\n\t%12s: %x\n\t%12s: %x",
+				block.Dbht, target,
+				"Best", block.OPRs[0].Difficulty,
+				"Last Graded", block.OPRs[len(block.GradedOPRs)-1].Difficulty,
+				"Cutoff", cutoff)
+		},
+	}
+
+	localCmd.Flags().Int("target", 200, "Target submission cutoff")
 
 	return localCmd
 }

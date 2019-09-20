@@ -12,6 +12,12 @@ import (
 
 // DiscordMessage is a handler for a discord message.
 func (a *PegnetDiscordBot) DiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered in DiscordMessage: %v", r)
+		}
+	}()
+
 	// Ignore all messages created by the bot itself
 	// This isn't required in this specific example but it's a good practice.
 	// Reject Mr or Junior
