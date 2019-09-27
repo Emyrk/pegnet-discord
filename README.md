@@ -1,5 +1,3 @@
-# Pegnet-node
-
-Powers https://www.factoshi.io/pegnet
+# Pegnet-Discord
 
 // TODO: Fill this out
